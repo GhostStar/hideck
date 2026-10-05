@@ -37,9 +37,11 @@ Manage USB modems, cellular proxy, SMS, WiFi calling / IMS voice, eSIM, and sche
 
 Protocol notes: [VoWiFi](docs/vowifi-protocol-alignment.md) · [VoLTE](docs/volte-native.md) · [operators](docs/operator-notes.md) · [hardware](docs/modem-hardware.md)
 
+Outgoing call/SMS quotas are per SIM and survive restarts: [limits and configuration](docs/outbound-limits.md).
+
 ## Quick start
 
-Docker (recommended). Needs Linux, curl, Docker Compose, host networking, and USB access. The image includes AMR/MP3 libraries for call recording.
+Docker (recommended). Needs Linux, curl, Docker Compose, host networking, and USB access. The image includes ADB, ALSA tools, AMR/MP3 libraries, and the embedded module-side voice runtime. The host still needs a USB audio driver; see [module voice prerequisites](DOCKERHUB.md#module-voice-dependencies).
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/yibaiba/hideck/main/deploy.sh | sh
@@ -60,6 +62,8 @@ curl -fsSL https://raw.githubusercontent.com/yibaiba/hideck/main/deploy.sh | \
 ```
 
 Image: `yibaiba/hideck:latest`. Compose uses `network_mode: host`, `privileged: true`, `/dev`, and persists `config/`, `data/`, `logs/`. See [DOCKERHUB.md](DOCKERHUB.md) and [HTTPS / WebRTC](docs/https-webrtc.md).
+
+For Feiniu fnOS, the optional [FPK packaging](packaging/fnos/README.md) reuses the Docker image with an application entry and persistent app directories; on-device validation is still required.
 
 ```bash
 docker compose ps
@@ -84,6 +88,10 @@ Compose override described in [Docker PC/SC setup](DOCKERHUB.md#pcsc-smart-card-
 | ![Commands](docs/images/commands.jpg) | ![Proxy](docs/images/console-proxy.jpg) |
 
 ## Binary install
+
+The installer also installs ADB, ALSA tools and recording libraries, then checks ADB capabilities and host USB audio support. Missing dependencies produce a nonzero exit status even if the HiDeck service was installed; they are not reported as a fully successful deployment. These checks do not connect to or reboot a modem.
+
+OpenWrt keeps module voice optional: use the separate `hideck-adb` and `hideck-modem-voice` packages. See [OpenWrt packaging](packaging/openwrt/README.md) for IPK/APK installation and target matching.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/yibaiba/hideck/main/deploy-binary.sh | sh

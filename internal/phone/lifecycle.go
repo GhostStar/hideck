@@ -60,7 +60,7 @@ func (s *Service) handleIncoming(incoming voicehost.IncomingCall) {
 	pending, alreadyEnded := s.takePendingLocked(incoming.CallID)
 	s.mu.Unlock()
 	if !alreadyEnded {
-		if err := s.gateway.StartCallCapture(incoming.DeviceID, incoming.CallID, call.recordingBase); err != nil {
+		if err := s.gateway.StartCallCapture(incoming.DeviceID, incoming.CallID, call.recordingBase); err != nil && !errors.Is(err, errors.ErrUnsupported) {
 			s.mu.Lock()
 			call.record.RecordingError = err.Error()
 			call.view.RecordingError = err.Error()
@@ -301,7 +301,7 @@ func (s *Service) finishCall(event voicehost.CallEvent) {
 	mediaID := call.mediaID
 	deviceID, peer, direction := call.view.DeviceID, call.view.Peer, call.view.Direction
 	s.mu.Unlock()
-	call.terminalOnce.Do(func() { close(call.terminalDone) })
+	defer call.terminalOnce.Do(func() { close(call.terminalDone) })
 	s.stopMixedRecording(call)
 	if mediaID != "" {
 		s.media.Remove(mediaID)

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/nyaruka/phonenumbers/v2"
 	"github.com/yibaiba/hideck/internal/device"
 	"github.com/yibaiba/hideck/internal/phone"
 	"github.com/yibaiba/hideck/pkg/logger"
@@ -68,7 +69,9 @@ func (s *Server) handlePhoneDevices(c *gin.Context) {
 				logger.Warn("电话设备列表识别 Lebara UK 射频策略失败", "device", worker.ID, "err", err)
 			}
 			voice := map[string]interface{}{}
-			if s.pool.IsNativeVoLTE(worker.ID) {
+			if s.pool.IsModemVoice(worker.ID) {
+				voice = s.pool.ModemVoiceController().DeviceStatus(worker.ID)
+			} else if s.pool.IsNativeVoLTE(worker.ID) {
 				if ctl := s.pool.NativeVoLTEController(); ctl != nil {
 					for key, value := range ctl.DeviceStatus(worker.ID) {
 						voice[key] = value
@@ -98,6 +101,9 @@ func (s *Server) handlePhoneDevices(c *gin.Context) {
 			}
 			if region := s.phoneNumberRegion(worker.ID); region != "" {
 				item["phone_region"] = region
+				if code := phonenumbers.GetCountryCodeForRegion(region); code != 0 {
+					item["phone_country_code"] = code
+				}
 			}
 			if recoverSnap := s.pool.LebaraUKIdentityRecoverSnapshot(worker.ID); recoverSnap.Status != "" {
 				item["lebara_identity_status"] = recoverSnap.Status
@@ -317,6 +323,9 @@ func (s *Server) requirePhone(c *gin.Context) bool {
 }
 
 func (s *Server) respondPhoneError(c *gin.Context, err error) {
+	if respondOutboundLimit(c, err) {
+		return
+	}
 	message := err.Error()
 	status := http.StatusBadRequest
 	code := "phone_error"
